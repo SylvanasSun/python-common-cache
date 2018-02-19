@@ -17,16 +17,20 @@ class CacheItem(dict):
     >>> import time
     >>> key = 'name'
     >>> value = 'SylvanasSun'
-    >>> item = CacheItem(key=key, value=value, expire=5)
+    >>> now = time.time()
+    >>> item = CacheItem(key=key, value=value, expire=2)
+    >>> assert now == item.birthday()
     >>> item[key]
     'SylvanasSun'
     >>> item.is_dead()
     False
     >>> item['hit_counts']
     0
-    >>> time.sleep(5)
+    >>> time.sleep(2)
     >>> item.is_dead()
     True
+    >>> item.remaining_survival_time()
+    0
     >>> item.refresh_expire(5)
     >>> item.is_dead()
     False
@@ -42,7 +46,9 @@ class CacheItem(dict):
         super(CacheItem, self).__init__(*args, **kwargs)
         self.itemlist = list(super(CacheItem, self).keys())
         self.__setitem__(key, value)
-        self.__setitem__('expire', time.time() + expire)
+        timestamp = time.time()
+        self.__setitem__('birthday', timestamp)
+        self.__setitem__('expire', timestamp + expire)
         self.__setitem__('hit_counts', hit_counts)
 
     def is_dead(self):
@@ -53,6 +59,18 @@ class CacheItem(dict):
 
     def refresh_expire(self, expire):
         self.__setitem__('expire', time.time() + expire)
+
+    def birthday(self):
+        return self.__getitem__('birthday')
+
+    def remaining_survival_time(self):
+        expire = self.__getitem__('expire')
+        now = time.time()
+        remain = expire - now
+        if remain < 0:
+            return 0
+        else:
+            return remain
 
     def update_hit_count(self):
         self.__setitem__('hit_counts', self.__getitem__('hit_counts') + 1)
