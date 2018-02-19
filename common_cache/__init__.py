@@ -19,7 +19,10 @@ class CacheItem(dict):
     >>> value = 'SylvanasSun'
     >>> now = time.time()
     >>> item = CacheItem(key=key, value=value, expire=2)
-    >>> assert now == item.birthday()
+    >>> now == item.birthday()
+    True
+    >>> now == item.last_used_time()
+    True
     >>> item[key]
     'SylvanasSun'
     >>> item.is_dead()
@@ -31,6 +34,10 @@ class CacheItem(dict):
     True
     >>> item.remaining_survival_time()
     0
+    >>> now = time.time()
+    >>> item.update_last_used_time()
+    >>> now == item.last_used_time()
+    True
     >>> item.refresh_expire(5)
     >>> item.is_dead()
     False
@@ -48,6 +55,7 @@ class CacheItem(dict):
         self.__setitem__(key, value)
         timestamp = time.time()
         self.__setitem__('birthday', timestamp)
+        self.__setitem__('last_used_time', timestamp)
         self.__setitem__('expire', timestamp + expire)
         self.__setitem__('hit_counts', hit_counts)
 
@@ -62,6 +70,12 @@ class CacheItem(dict):
 
     def birthday(self):
         return self.__getitem__('birthday')
+
+    def last_used_time(self):
+        return self.__getitem__('last_used_time')
+
+    def update_last_used_time(self):
+        self.__setitem__('last_used_time', time.time())
 
     def remaining_survival_time(self):
         expire = self.__getitem__('expire')
