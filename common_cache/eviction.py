@@ -23,9 +23,16 @@ def fifo_for_evict(cache_dict, evict_number=1):
     1
     >>> len(evicted_keys)
     2
+    >>> evicted_keys = fifo_for_evict(dict, evict_number=10)
+    >>> len(dict)
+    0
+    >>> len(evicted_keys)
+    1
     """
     ordered_dict = sorted(cache_dict.items(), key=lambda t: t[1]['birthday'])
     evicted_keys = []
+    if len(cache_dict) < evict_number:
+        evict_number = len(cache_dict)
     for i in range(evict_number):
         item = ordered_dict[i]
         key = item[0]
@@ -62,10 +69,16 @@ def lru_for_evict(cache_dict, evict_number=1):
     ['b', 'c']
     >>> len(cache)
     1
+    >>> lru_for_evict(cache, evict_number=10)
+    ['d']
+    >>> len(cache)
+    0
     """
     if not isinstance(cache_dict, collections.OrderedDict):
         raise ValueError('Not supported type %s' % type(cache_dict))
     evicted_keys = []
+    if len(cache_dict) < evict_number:
+        evict_number = len(cache_dict)
     for i in range(evict_number):
         item = cache_dict.popitem(last=False)
         evicted_keys.append(item[0])
@@ -92,9 +105,16 @@ def lfu_for_evict(cache_dict, evict_number=1):
     2
     >>> len(evicted_keys)
     1
+    >>> evicted_keys = lfu_for_evict(dict, evict_number=10)
+    >>> len(dict)
+    0
+    >>> len(evicted_keys)
+    2
     """
     ordered_dict = sorted(cache_dict.items(), key=lambda t: t[1]['hit_counts'])
     evicted_keys = []
+    if len(cache_dict) < evict_number:
+        evict_number = len(cache_dict)
     for i in range(evict_number):
         item = ordered_dict[i]
         key = item[0]
