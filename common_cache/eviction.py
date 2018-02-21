@@ -9,12 +9,9 @@ def fifo_for_evict(cache_dict, evict_number=1):
 
     Test:
     >>> from common_cache import CacheItem
-    >>> import time
     >>> dict = {}
     >>> dict['a'] = CacheItem(key='a', value=0, expire=5)
-    >>> time.sleep(1)
     >>> dict['b'] = CacheItem(key='b', value=1, expire=5)
-    >>> time.sleep(1)
     >>> dict['c'] = CacheItem(key='c', value=2, expire=5)
     >>> len(dict)
     3
@@ -23,6 +20,8 @@ def fifo_for_evict(cache_dict, evict_number=1):
     1
     >>> len(evicted_keys)
     2
+    >>> evicted_keys
+    ['a', 'b']
     >>> evicted_keys = fifo_for_evict(dict, evict_number=10)
     >>> len(dict)
     0
@@ -91,25 +90,24 @@ def lfu_for_evict(cache_dict, evict_number=1):
 
     Test:
     >>> from common_cache import CacheItem
-    >>> import time
     >>> dict = {}
     >>> dict['a'] = CacheItem(key='a', value=0, expire=5)
-    >>> time.sleep(1)
     >>> dict['b'] = CacheItem(key='b', value=1, expire=5)
-    >>> time.sleep(1)
     >>> dict['c'] = CacheItem(key='c', value=2, expire=5)
     >>> len(dict)
     3
-    >>> evicted_keys = lfu_for_evict(dict, evict_number=1)
-    >>> len(dict)
-    2
-    >>> len(evicted_keys)
-    1
-    >>> evicted_keys = lfu_for_evict(dict, evict_number=10)
+    >>> dict['a'].update_hit_count()
+    >>> dict['a'].update_hit_count()
+    >>> dict['a'].update_hit_count()
+    >>> dict['b'].update_hit_count()
+    >>> lfu_for_evict(dict)
+    ['c']
+    >>> lfu_for_evict(dict)
+    ['b']
+    >>> lfu_for_evict(dict)
+    ['a']
     >>> len(dict)
     0
-    >>> len(evicted_keys)
-    2
     """
     ordered_dict = sorted(cache_dict.items(), key=lambda t: t[1]['hit_counts'])
     evicted_keys = []
