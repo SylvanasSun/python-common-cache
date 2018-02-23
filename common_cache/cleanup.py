@@ -59,12 +59,17 @@ class CleanupSupervisorThread(threading.Thread):
         self.cache_ref = weakref.ref(cache)
         self.interval = interval
         self.logger = logger
+        self.flag = True
         super(CleanupSupervisorThread, self).__init__(name=name, daemon=daemon)
+
+    def stop(self):
+        self.flag = False
 
     def run(self):
         self.logger.debug('Thread[%s] start running and will to work in the after 10 seconds' % self.name)
         time.sleep(10)
-        while self.cache_ref():
+
+        while self.cache_ref() and self.flag:
             cache = self.cache_ref()
             if cache:
                 next_expire = cache.cleanup(cache)
