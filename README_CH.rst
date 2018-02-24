@@ -28,10 +28,10 @@ python-common-cache
     :target: https://github.com/SylvanasSun/python-common-cache
 .. image:: https://img.shields.io/github/issues/SylvanasSun/python-common-cache.svg
     :target: https://github.com/SylvanasSun/python-common-cache
-.. image:: https://img.shields.io/github/commits-since/SylvanasSun/python-common-cache/0.1.svg
-    :target: https://github.com/SylvanasSun/python-common-cache
 
 \
+
+English_
 
 .. _English: README.rst
 
