@@ -33,41 +33,40 @@ python-common-cache
 
 \
 
-.. _简体中文: README_CH.rst
+.. _English: README.rst
 
-
-This project is an cache component based on the memory and it is lightweight, simple and customizable, you can implement a cache that your needs in a very simple way.
+该项目是一个基于内存的缓存组件，它是轻量级的、简单的和可自定义化的，你可以以一种非常简单的方法来实现你的需求。
 
 
 Features
 --------
 
-- Out-of-the-box, there is no complex configuration code you can easily use it by default configuration but also support a customized configuration for your needs such as customized evict strategy, cleanup strategy and whether enable thread pool and so on.
+- 开箱即用，没有复杂的配置代码，你可以通过默认配置来简单、轻松地使用缓存，但同时也支持自定义配置以满足需求，例如，自定义evict策略、清理策略以及是否使用线程池等等。
 
-- Fine-grained control for expiration time, each cache instance has a global expiration time but you can also set the local expiration time of the key by put(key, value, expire) function.
+- 细粒度的过期时间控制，每个缓存实例对象都含有一个全局的过期时间，但你也可以通过函数put(key, value, expire)来设置局部的过期时间。
 
-- Supports to build a multi-level cache system by cache_loader(key) and cache_writer(key, value), the former will can load cache from other cache system or data source when the cache is miss and the latter will can take the results write to another cache system or data source, above two function needs you to implement and configure to the cache instance.
+- 通过函数cache_loader(key)和cache_writer(key, value)以支持构建多级缓存系统，前者可以在缓存未命中的情况下从其他缓存系统或者数据源读取缓存，后者则可以将查询到的结果写入到另一个缓存系统或者数据源，以上两个函数都需要你自己实现并配置到缓存实例对象中。
 
-- Default use LRU(Least-Recently-Used) strategy for recycle old cache item when the capacity of the cache is full and also provide two other kinds of the evict strategy FIFO(First-In-First-Out) and LFU(Least-Frequently-Used).
+- 当缓存的容量已满时，默认使用LRU(Least-Recently-Used)策略进行回收旧数据，并且还提供了另外两种其他的策略：FIFO(First-In-First-Out)与LFU(Least-Frequently-Used)。
 
-- Supports dynamic replacement evict function and cleanup function in the runtime by replace_evict_func(func) and replace_cleanup_func(func).
+- 通过函数replace_evict_func(func)与replace_cleanup_func()支持在运行时进行动态替换驱逐策略与清理策略。
 
-- Create a daemon when cache instance initialize and it will to regularly clean up invalid cache item by invoking cleanup() and cache instance will be invoked cleanup() when each use get()/put()/pop() after.
+- 在缓存实例对象实例化时创建一个用于定期清理无效缓存项的守护进程，而且缓存实例对象在每次使用get()/put()/pop()操作之后,都会调用清理函数进行清理。
 
-- Each cache instance default has a thread pool for improving throughput, you can choose not use thread pool when creating cache instance such as "cache = Cache(enable_thread_pool=False)" and can also dynamic control enable or unable thread pool when runtime.
+- 每个缓存实例对象默认都有一个用于提高吞吐量的线程池，你可以在创建缓存实例时选择不使用线程池，例如“cache = Cache(enable_thread_pool = False)”，也可以在运行时对线程池进行动态开关。
 
-- Have recorded statistics information of each cache item and the information is included hit counts, hit rate, miss counts, expiration time, remaining survival time, birthday and key and value, you can get those by invoking function statistic_record().
+- 记录了每个缓存项的统计信息，包括命中次数、命中率、未命中次数、expire时间、剩余时间、创建时间和key与value，你可以通过调用statistic_record()函数来获得这些信息。
 
 Usage
 -----
 
-First you need to install it.
+首先你需要通过pip进行安装。
 
 ::
 
     pip install python-common-cache
 
-Have two way for use cache, the first is direct use it is like use a dictionary:
+有两种使用方法, 第一种就是直接使用缓存实例，就像使用一个dict一样:
 
 ::
 
@@ -80,7 +79,7 @@ Have two way for use cache, the first is direct use it is like use a dictionary:
         # cache miss and return data from a data source or service
         ....
 
-The second way is to use decorator and this way more convenient:
+第二种是通过缓存实例提供的装饰器，这种方法更加方便且实用:
 
 ::
 
@@ -138,4 +137,4 @@ The second way is to use decorator and this way more convenient:
     >>> g()
     'g from cache loader(global)'
 
-For more usage please read the source code of the class Cache and have many document test example code for reference.
+更多的用法请阅读Cache类的源码，其中有非常多的使用案例代码以供参考。
