@@ -10,6 +10,7 @@ python-common-cache
 .. image:: https://img.shields.io/github/followers/SylvanasSun.svg?style=social&label=Follow
     :target: https://github.com/SylvanasSun/python-common-cache
 
+\n
 
 .. image:: https://badges.frapsoft.com/os/mit/mit.svg?v=103)](https://opensource.org/licenses/mit-license.php
     :target: LICENSE
@@ -27,9 +28,10 @@ python-common-cache
     :target: https://github.com/SylvanasSun/python-common-cache
 .. image:: https://img.shields.io/github/issues/SylvanasSun/python-common-cache.svg
     :target: https://github.com/SylvanasSun/python-common-cache
-.. image:: https://img.shields.io/github/commits/SylvanasSun/python-common-cache.svg
+.. image:: https://img.shields.io/github/commits-since/SylvanasSun/python-common-cache.svg
     :target: https://github.com/SylvanasSun/python-common-cache
 
+\n
 
 .. _简体中文: README_CH.rst
 
