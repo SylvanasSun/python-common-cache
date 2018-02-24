@@ -7,14 +7,32 @@ python-common-cache
     :target: https://github.com/SylvanasSun/python-common-cache
 .. image:: https://img.shields.io/github/watchers/SylvanasSun/python-common-cache.svg?style=social&label=Watch
     :target: https://github.com/SylvanasSun/python-common-cache
+.. image:: https://img.shields.io/github/followers/SylvanasSun.svg?style=social&label=Follow
+    :target: https://github.com/SylvanasSun/python-common-cache
+
+
 .. image:: https://badges.frapsoft.com/os/mit/mit.svg?v=103)](https://opensource.org/licenses/mit-license.php
     :target: LICENSE
 .. image:: https://travis-ci.org/SylvanasSun/python-common-cache.svg?branch=master
     :target: https://travis-ci.org/SylvanasSun/python-common-cache
 .. image:: https://img.shields.io/pypi/pyversions/python-common-cache.svg
     :target: https://pypi.python.org/pypi/python-common-cache
+.. image:: https://img.shields.io/pypi/v/python-common-cache.svg
+    :target: https://pypi.python.org/pypi/python-common-cache
+.. image:: https://img.shields.io/badge/version-0.1-brightgreen.svg
+    :target: https://pypi.python.org/pypi/python-common-cache
+.. image:: https://img.shields.io/github/release/SylvanasSun/python-common-cache.svg
+    :target: https://github.com/SylvanasSun/python-common-cache
+.. image:: https://img.shields.io/github/tag/SylvanasSun/python-common-cache.svg
+    :target: https://github.com/SylvanasSun/python-common-cache
+.. image:: https://img.shields.io/github/issues/SylvanasSun/python-common-cache.svg
+    :target: https://github.com/SylvanasSun/python-common-cache
+.. image:: https://img.shields.io/github/commits/SylvanasSun/python-common-cache.svg
+    :target: https://github.com/SylvanasSun/python-common-cache
+
 
 .. _简体中文: README_CH.rst
+
 
 This project is an cache component based on the memory and it is lightweight, simple and customizable, you can implement a cache that your needs in a very simple way.
 
