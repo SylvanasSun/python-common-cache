@@ -2,4 +2,4 @@
   python:
     - "3.6"
   script:
-    - pytest
+    - python -m doctest -v common_cache.py
