@@ -3,3 +3,5 @@
     - "3.6"
   script:
     - python -m doctest -v common_cache.py
+    - python -m doctest -v common_cache/cleanup.py
+    - python -m doctest -v common_cache/eviction.py
