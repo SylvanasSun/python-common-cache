@@ -49,6 +49,9 @@ def _enable_cleanup(func):
 def _enable_thread_pool(func):
     """
     Use thread pool for executing a task if self.enable_thread_pool is True.
+
+    Return an instance of future when flag is_async is True otherwise will to
+    block waiting for the result until timeout then returns the result.
     """
 
     @functools.wraps(func)
@@ -56,15 +59,18 @@ def _enable_thread_pool(func):
         self = args[0]
         if self.enable_thread_pool and hasattr(self, 'thread_pool'):
             future = self.thread_pool.submit(func, *args, **kwargs)
-            timeout = kwargs.get('timeout')
-            if timeout is None:
-                timeout = 2
-            try:
-                result = future.result(timeout=timeout)
-            except TimeoutError as e:
-                self.logger.exception(e)
-                result = None
-            return result
+            is_async = kwargs.get('is_async')
+            if is_async is None or not is_async:
+                timeout = kwargs.get('timeout')
+                if timeout is None:
+                    timeout = 2
+                try:
+                    result = future.result(timeout=timeout)
+                except TimeoutError as e:
+                    self.logger.exception(e)
+                    result = None
+                return result
+            return future
         else:
             return func(*args, **kwargs)
 
@@ -552,7 +558,7 @@ class Cache(object):
 
     @_enable_thread_pool
     @_enable_lock
-    def statistic_record(self, desc=True, timeout=3, *keys):
+    def statistic_record(self, desc=True, timeout=3, is_async=False, *keys):
         """
         Returns a list that each element is a dictionary of the statistic info of the cache item.
         """
@@ -685,7 +691,7 @@ class Cache(object):
     @_enable_thread_pool
     @_enable_lock
     @_enable_cleanup
-    def get(self, key, timeout=1):
+    def get(self, key, timeout=1, is_async=False):
         """
         Test:
 
@@ -727,7 +733,7 @@ class Cache(object):
     @_enable_thread_pool
     @_enable_lock
     @_enable_cleanup
-    def put(self, key, value, expire=None, timeout=1):
+    def put(self, key, value, expire=None, timeout=1, is_async=True):
         """
         Test:
 
@@ -748,7 +754,7 @@ class Cache(object):
     @_enable_thread_pool
     @_enable_lock
     @_enable_cleanup
-    def pop(self, key, timeout=1):
+    def pop(self, key, timeout=1, is_async=False):
         """
         Test:
 
@@ -835,17 +841,17 @@ class Cache(object):
 
     @_enable_thread_pool
     @_enable_lock
-    def keys(self, timeout=2):
+    def keys(self, timeout=2, is_async=False):
         return self.cache_items.keys()
 
     @_enable_thread_pool
     @_enable_lock
-    def items(self, timeout=2):
+    def items(self, timeout=2, is_async=False):
         return self.cache_items.items()
 
     @_enable_thread_pool
     @_enable_lock
-    def values(self, timeout=2):
+    def values(self, timeout=2, is_async=False):
         return self.cache_items.values()
 
     @_enable_lock
