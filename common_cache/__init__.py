@@ -13,6 +13,8 @@ from concurrent.futures import ThreadPoolExecutor, TimeoutError
 from common_cache.cleanup import CleanupSupervisorThread, basic_cleanup
 from common_cache.eviction import EvictionStrategy
 
+DEFAULT_THREAD_NUMBER = 8
+
 
 def _enable_lock(func):
     """
@@ -103,7 +105,18 @@ def _check_function_obj(param_length):
     return decorator
 
 
-def _init_thread_pool(max_workers=10, thread_name_prefix='COMMON-CACHE-'):
+def _init_thread_pool(max_workers=DEFAULT_THREAD_NUMBER, thread_name_prefix='COMMON-CACHE-'):
+    if max_workers <= 0:
+        max_workers = DEFAULT_THREAD_NUMBER
+
+    try:
+        import multiprocessing
+        cpu_count = multiprocessing.cpu_count()
+        if max_workers == DEFAULT_THREAD_NUMBER and cpu_count > max_workers or cpu_count <= DEFAULT_THREAD_NUMBER >> 1:
+            max_workers = cpu_count
+    except (ImportError, NotImplementedError):
+        pass
+
     return ThreadPoolExecutor(max_workers=max_workers, thread_name_prefix=thread_name_prefix)
 
 
