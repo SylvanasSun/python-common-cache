@@ -36,38 +36,43 @@ python-common-cache
 .. _简体中文: README_CH.rst
 
 
-This project is an cache component based on the memory and it is lightweight, simple and customizable, you can implement a cache that your needs in a very simple way.
+python-common-cache is a cache component based in memory. It is lightweight, simple, and customizable. Implementing a cache that fits your needs is as simple as installing and importing.
 
 
 Features
 --------
 
-- Out-of-the-box, there is no complex configuration code you can easily use it by default configuration but also support a customized configuration for your needs such as customized evict strategy, cleanup strategy and whether enable thread pool and so on.
+- Complex configuration code is not necessary. The default configuration is suited for most use cases but there is also support for customized configuration in regards to: eviction strategy, cleanup strategy, and whether to enable thread pool and so on.
 
-- Fine-grained control for expiration time, each cache instance has a global expiration time but you can also set the local expiration time of the key by put(key, value, expire) function.
+- Fine-grained control of expiration time. Each cache instance has a global expiration time but can also set the local expiration time of the key by using ``put(key, value, expire)``.
 
-- Supports to build a multi-level cache system by cache_loader(key) and cache_writer(key, value), the former will can load cache from other cache system or data source when the cache is miss and the latter will can take the results write to another cache system or data source, above two function needs you to implement and configure to the cache instance.
+- Supports building a multi-level cache system using the ``cache_loader(key)`` and the ``cache_writer(key, value)``. The ``cache_loader(key)`` can load a cache from another cache system or data source when there is a cache miss. The ``cache_writer(key, value)`` can take the results and write to another cache system or data source. The ``cache_loader(key)`` and ``cache_writer(key, value)``  needs you to implement and configure to the cache instance.
 
-- Default use LRU(Least-Recently-Used) strategy for recycle old cache item when the capacity of the cache is full and also provide two other kinds of the evict strategy FIFO(First-In-First-Out) and LFU(Least-Frequently-Used).
+- LRU (Least-Recently-Used) strategy for recycling old cache items when the capacity of the cache is full. FIFO (First-In-First-Out) and LFU (Least-Frequently-Used) can also be used instead.
 
-- Supports dynamic replacement evict function and cleanup function in the runtime by replace_evict_func(func) and replace_cleanup_func(func).
+- Supports dynamic replacement eviction by using ``replace_evict_func(func)`` and a cleanup function using ``replace_cleanup_func(func)``.
 
-- Create a daemon when cache instance initialize and it will to regularly clean up invalid cache item by invoking cleanup() and cache instance will be invoked cleanup() when each use get()/put()/pop() after.
+- Creates a daemon when a cache instance is initialized and will regularly clean up invalid cache items by invoking ``cleanup()``. The cache instance will invoke ``cleanup()`` after using ``get()/put()/pop()``.
 
-- Each cache instance default has a thread pool for improving throughput, you can choose not use thread pool when creating cache instance such as "cache = Cache(enable_thread_pool=False)" and can also dynamic control enable or unable thread pool when runtime.
+- Each cache instance has a thread pool for improving throughput, which can be disabled by passing ``enable_thread_pool=False`` to the ``Cache()`` function which can also invoke dynamic control or by disabling the thread pool at runtime
 
-- Have recorded statistics information of each cache item and the information is included hit counts, hit rate, miss counts, expiration time, remaining survival time, birthday and key and value, you can get those by invoking function statistic_record().
+- ``statistic_record()`` outputs the recorded statistics of each cache item including: hit counts, hit rate, miss counts, expiration time, remaining survival time, birthday, and key and value
 
-Usage
+Installation
 -----
 
-First you need to install it.
+Install using pip
 
 ::
 
     pip install python-common-cache
+    
+Usage
+-----
 
-Have two way for use cache, the first is direct use it is like use a dictionary:
+There are two ways to use the cache
+
+The first is to use it like a dictionary:
 
 ::
 
@@ -80,7 +85,7 @@ Have two way for use cache, the first is direct use it is like use a dictionary:
         # cache miss and return data from a data source or service
         ....
 
-The second way is to use decorator and this way more convenient:
+The second way is to use a decorator which is more convenient:
 
 ::
 
@@ -138,4 +143,4 @@ The second way is to use decorator and this way more convenient:
     >>> g()
     'g from cache loader(global)'
 
-For more usage please read the source code of the class Cache and have many document test example code for reference.
+For more usage examples please read the source code of the Cache class where there are many examples for reference.
