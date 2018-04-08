@@ -5,13 +5,13 @@ import datetime
 import functools
 import inspect
 import logging
-import sys
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 from common_cache.cleanup import CleanupSupervisorThread, basic_cleanup
 from common_cache.eviction import EvictionStrategy
+from common_cache.utils import get_function_signature, init_logger
 
 DEFAULT_THREAD_NUMBER = 8
 
@@ -248,7 +248,7 @@ class Cache(object):
     The usage is very simple you can easily implement caching with a decorator
     @cache_instance.access_cache(), look at following example code:
 
-    >>> cache = Cache() # default configuration
+    >>> cache = Cache(log_level=logging.WARNING) # default configuration
     >>> @cache.access_cache(key='foo')
     ... def foo():
     ...     return 'data from data source'
@@ -268,11 +268,10 @@ class Cache(object):
                  evict_number=1, instance_name='CACHE-INSTANCE', cleanup_func=basic_cleanup,
                  regularly_cleanup=True, regularly_cleanup_interval=60, is_concurrent=True,
                  read_after_refresh_expire=True, log_filename=None, log_format=None, log_level=logging.INFO,
-                 enable_thread_pool=True, thread_pool_init_func=_init_thread_pool, cache_loader=None):
+                 enable_thread_pool=True, thread_pool_init_func=_init_thread_pool,
+                 cache_loader=None, cache_writer=None):
         self.capacity = capacity
         self.expire = expire
-        self.evict_func = evict_func
-        self.cleanup = cleanup_func
         self.evict_number = evict_number
         self.total_access_count = 0
         self.read_after_refresh_expire = read_after_refresh_expire
@@ -283,7 +282,7 @@ class Cache(object):
         self.is_concurrent = is_concurrent
 
         instance_name = self._generate_cache_instance_name(basic_name=instance_name)
-        self._init_logger(level=log_level, filename=log_filename, format=log_format, name=instance_name)
+        self.logger = init_logger(self, level=log_level, filename=log_filename, format=log_format, name=instance_name)
 
         self.regularly_cleanup_interval = regularly_cleanup_interval
         if regularly_cleanup:
@@ -292,31 +291,30 @@ class Cache(object):
             cleanup_supervisor.start()
             self.cleanup_supervisor = cleanup_supervisor
 
+        self.logger.info('The cache is initializing....')
+
         if enable_thread_pool and thread_pool_init_func is not None:
             self.thread_pool = thread_pool_init_func()
-            self.logger.debug('Initialize thread pool completed %s' % self.thread_pool)
+            self.logger.info('initialize thread pool is completed %s' % self.thread_pool)
 
+        self.logger.info('initialize the parameter list: ...')
+        for k, v in self.__dict__.items():
+            self.logger.info('  %s ---> %s' % (k, v))
+
+        self.evict_func = evict_func
+        self.cleanup = cleanup_func
         self.cache_loader = cache_loader
-        if self.cache_loader is not None:
-            cache_loader_name = self.cache_loader.__name__
-        else:
-            cache_loader_name = 'None'
-
-        log_message = 'Cache initialize is completed \n'
-        log_message += '[ capacity: %s, expire: %s, eviction strategy: %s, evict number: %s, instance name: %s \n'
-        log_message += 'cleanup function: %s, regularly cleanup: %s, regularly cleanup interval: %s, is concurrent: %s \n'
-        log_message += 'read after refresh expire: %s, log filename: %s, log format: %s, log level: %s \n'
-        log_message += 'enable thread pool: %s, thread pool init function: %s, cache loader: %s ]'
-        self.logger.debug(log_message
-                          % (capacity, expire, evict_func.__name__, evict_number, instance_name,
-                             cleanup_func.__name__, regularly_cleanup, regularly_cleanup_interval, is_concurrent,
-                             read_after_refresh_expire, log_filename, log_format, log_level,
-                             enable_thread_pool, thread_pool_init_func.__name__, cache_loader_name))
+        self.cache_writer = cache_writer
+        self.logger.info('initialize the function list: ...')
+        self.logger.info('evict function: %s' % get_function_signature(self.evict_func))
+        self.logger.info('cleanup function: %s' % get_function_signature(self.cleanup))
+        self.logger.info('cache loader: %s' % get_function_signature(self.cache_loader))
+        self.logger.info('cache writer: %s' % get_function_signature(self.cache_writer))
 
     @_enable_lock
     def size(self):
         """
-        >>> cache = Cache()
+        >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.put('a', 0)
         >>> cache.put('b', 1)
         >>> cache.put('c', 2)
@@ -332,7 +330,7 @@ class Cache(object):
     @_enable_lock
     def clear(self):
         """
-        >>> cache = Cache()
+        >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.put('a', 0)
         >>> cache.put('b', 1)
         >>> cache.size()
@@ -349,19 +347,19 @@ class Cache(object):
     @_enable_lock
     def replace_evict_func(self, func):
         """
-        >>> cache = Cache()
+        >>> cache = Cache(log_level=logging.WARNING)
         >>> def evict(dict, evict_number=10): pass
         >>> cache.replace_evict_func(evict)
         True
         >>> def evict_b(dict): pass
         >>> cache.replace_evict_func(evict_b)
-        Parameter evict_b must be have 2 parameters
         False
         >>> def evict_c(dict, a, b): pass
         >>> cache.replace_evict_func(evict_c)
-        Parameter evict_c must be have 2 parameters
         False
         """
+        self.logger.info('Replace the evict function %s ---> %s' % (
+            get_function_signature(self.evict_func), get_function_signature(func)))
         self.evict_func = func
         return True
 
@@ -369,15 +367,16 @@ class Cache(object):
     @_enable_lock
     def replace_cleanup_func(self, func):
         """
-        >>> cache = Cache()
+        >>> cache = Cache(log_level=logging.WARNING)
         >>> def cleanup(self): pass
         >>> cache.replace_cleanup_func(cleanup)
         True
         >>> def cleanup_b(self, other): pass
         >>> cache.replace_cleanup_func(cleanup_b)
-        Parameter cleanup_b must be have 1 parameters
         False
         """
+        self.logger.info('Replace the cleanup function %s ---> %s' % (
+            get_function_signature(self.cleanup), get_function_signature(func)))
         self.cleanup = func
         return True
 
@@ -385,26 +384,41 @@ class Cache(object):
     @_enable_lock
     def with_cache_loader(self, func):
         """
-        >>> cache = Cache()
+        >>> cache = Cache(log_level=logging.WARNING)
         >>> def cache_loader(key): pass
         >>> cache.with_cache_loader(cache_loader)
         True
         >>> def cache_loader_b(key, value): pass
         >>> cache.with_cache_loader(cache_loader_b)
-        Parameter cache_loader_b must be have 1 parameters
         False
         """
+        self.logger.info('Enabled cache loader %s' % get_function_signature(func))
         self.cache_loader = func
+        return True
+
+    @_check_function_obj(param_length=2)
+    @_enable_lock
+    def with_cache_writer(self, func):
+        """
+        >>> cache = Cache(log_level=logging.WARNING)
+        >>> def cache_writer(key): pass
+        >>> cache.with_cache_writer(cache_writer)
+        False
+        >>> def cache_writer(key, value): pass
+        >>> cache.with_cache_writer(cache_writer)
+        True
+        """
+        self.logger.info('Enabled cache writer %s' % get_function_signature(func))
+        self.cache_writer = func
         return True
 
     @_enable_lock
     def stop_regularly_cleanup(self):
         """
-        >>> cache = Cache()
+        >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.stop_regularly_cleanup()
         True
         >>> cache.stop_regularly_cleanup()
-        Current not have a regularly cleanup thread is existent
         False
         """
         if hasattr(self, 'cleanup_supervisor') and self.cleanup_supervisor is not None:
@@ -462,11 +476,10 @@ class Cache(object):
     @_enable_lock
     def unable_thread_pool(self):
         """
-        >>> cache = Cache()
+        >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.unable_thread_pool()
         True
         >>> cache.unable_thread_pool()
-        Current not have a thread pool is existent
         False
         """
         if self.enable_thread_pool and hasattr(self, 'thread_pool') and self.thread_pool is not None:
@@ -482,13 +495,12 @@ class Cache(object):
     @_enable_lock
     def shutdown_thread_pool(self):
         """
-        >>> cache = Cache()
+        >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.shutdown_thread_pool()
         True
         >>> cache.unable_thread_pool()
         True
         >>> cache.shutdown_thread_pool()
-        Current not have a thread pool is existent
         False
         """
         if self.enable_thread_pool and hasattr(self, 'thread_pool') and self.thread_pool is not None:
@@ -501,12 +513,11 @@ class Cache(object):
     @_enable_lock
     def set_capacity(self, new_capacity):
         """
-        >>> cache = Cache()
+        >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.set_capacity(100)
         >>> cache.capacity
         100
         >>> cache.set_capacity('haha')
-        Parameter new_capacity haha must be greater than 0 and is an integer
         >>> cache.capacity
         100
         """
@@ -518,12 +529,11 @@ class Cache(object):
     @_enable_lock
     def set_expire(self, new_expire):
         """
-        >>> cache = Cache()
+        >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.set_expire(40)
         >>> cache.expire
         40
         >>> cache.set_expire('haha')
-        Parameter new_expire haha must be positive number
         >>> cache.expire
         40
         """
@@ -535,12 +545,11 @@ class Cache(object):
     @_enable_lock
     def set_evict_number(self, new_evict_number):
         """
-        >>> cache = Cache()
+        >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.set_evict_number(10)
         >>> cache.evict_number
         10
         >>> cache.set_evict_number('haha')
-        Parameter new_evict_number haha must be greater than 0 and is an integer
         >>> cache.evict_number
         10
         """
@@ -553,14 +562,13 @@ class Cache(object):
     @_enable_lock
     def with_read_after_refresh_expire(self, flag):
         """
-        >>> cache = Cache()
+        >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.read_after_refresh_expire
         True
         >>> cache.with_read_after_refresh_expire(False)
         >>> cache.read_after_refresh_expire
         False
         >>> cache.with_read_after_refresh_expire('haha')
-        Parameter flag haha must be boolean
         >>> cache.read_after_refresh_expire
         False
         """
@@ -615,7 +623,7 @@ class Cache(object):
         notice: if the parameter auto_update is False so it will not execute.
 
         >>> import time
-        >>> cache = Cache()
+        >>> cache = Cache(log_level=logging.WARNING)
         >>> @cache.access_cache(key='a')
         ... def a():
         ...     return 'a from data source'
@@ -681,20 +689,23 @@ class Cache(object):
                 # if the cache is miss and cache loader is the existent
                 # then query cache from cache loader
                 if cache_result is None:
-                    if cache_loader is None and self.cache_loader is not None:
-                        cache_result = self.cache_loader(k)
-                    elif cache_loader is not None:
+                    if cache_loader is not None:
                         cache_result = cache_loader(k)
+                    elif self.cache_loader is not None:
+                        cache_result = self.cache_loader(k)
                 # if still miss then execute a function that is decorated
                 # then update cache on the basis of parameter auto_update
                 if cache_result is not None:
                     return cache_result
                 else:
                     result = func(*args, **kwargs)
+
                 if auto_update:
                     self.put(key=k, value=result, expire=expire, timeout=timeout)
                     if cache_writer is not None:
                         self.thread_pool.submit(cache_writer, k, result)
+                    elif self.cache_writer is not None:
+                        self.thread_pool.submit(self.cache_writer, k, result)
                 return result
 
             return wrapper
@@ -771,7 +782,7 @@ class Cache(object):
         """
         Test:
 
-        >>> cache = Cache()
+        >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.put('a', 0)
         >>> cache.pop('a')
         0
@@ -784,7 +795,7 @@ class Cache(object):
 
     def __getitem__(self, key):
         """
-        >>> cache = Cache()
+        >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.put('a', 0)
         >>> cache['a']
         0
@@ -798,7 +809,7 @@ class Cache(object):
 
     def __setitem__(self, key, value):
         """
-        >>> cache = Cache()
+        >>> cache = Cache(log_level=logging.WARNING)
         >>> cache['a'] = 0
         >>> cache['b'] = 1
         >>> cache.get('a')
@@ -810,7 +821,7 @@ class Cache(object):
 
     def __delitem__(self, key):
         """
-        >>> cache = Cache()
+        >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.put('a', 0)
         >>> cache.put('b', 1)
         >>> del cache['a']
@@ -872,17 +883,6 @@ class Cache(object):
         name = basic_name + '-' + str(Cache.cache_instance_id_counter)
         Cache.cache_instance_id_counter += 1
         return name
-
-    def _init_logger(self, level, name, filename, format):
-        self.logger = logging.getLogger(self.__class__.__name__ + '<%s>' % name)
-        if filename is not None:
-            handler = logging.FileHandler(filename=filename)
-        else:
-            handler = logging.StreamHandler(sys.stdout)
-        if format is not None:
-            handler.setFormatter(logging.Formatter(format))
-        handler.setLevel(level)
-        self.logger.addHandler(handler)
 
 
 if __name__ == '__main__':
