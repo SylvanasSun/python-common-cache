@@ -5,3 +5,4 @@
     - python -m doctest -v common_cache.py
     - python -m doctest -v common_cache/cleanup.py
     - python -m doctest -v common_cache/eviction.py
+    - python -m doctest -v common_cache/utils.py
