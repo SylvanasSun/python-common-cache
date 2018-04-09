@@ -5,13 +5,12 @@ import datetime
 import functools
 import inspect
 import logging
-import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError
 
 from common_cache.cleanup import CleanupSupervisorThread, basic_cleanup
 from common_cache.eviction import EvictionStrategy
-from common_cache.utils import get_function_signature, init_logger
+from common_cache.utils import get_function_signature, init_logger, RWLock
 
 DEFAULT_THREAD_NUMBER = 8
 
@@ -25,8 +24,16 @@ def _enable_lock(func):
     def wrapper(*args, **kwargs):
         self = args[0]
         if self.is_concurrent:
-            with self._rlock:
-                return func(*args, **kwargs)
+            only_read = kwargs.get('only_read')
+            if only_read is None or only_read:
+                with self._rwlock:
+                    return func(*args, **kwargs)
+            else:
+                self._rwlock.acquire_writer()
+                try:
+                    return func(*args, **kwargs)
+                finally:
+                    self._rwlock.release()
         else:
             return func(*args, **kwargs)
 
@@ -278,7 +285,7 @@ class Cache(object):
         self.enable_thread_pool = enable_thread_pool
         self.cache_items = collections.OrderedDict()
         if is_concurrent:
-            self._rlock = threading.RLock()
+            self._rwlock = RWLock()
         self.is_concurrent = is_concurrent
 
         instance_name = self._generate_cache_instance_name(basic_name=instance_name)
@@ -312,7 +319,7 @@ class Cache(object):
         self.logger.info('cache writer: %s' % get_function_signature(self.cache_writer))
 
     @_enable_lock
-    def size(self):
+    def size(self, only_read=True):
         """
         >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.put('a', 0)
@@ -328,7 +335,7 @@ class Cache(object):
         return len(self.cache_items)
 
     @_enable_lock
-    def clear(self):
+    def clear(self, only_read=False):
         """
         >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.put('a', 0)
@@ -345,7 +352,7 @@ class Cache(object):
 
     @_check_function_obj(param_length=2)
     @_enable_lock
-    def replace_evict_func(self, func):
+    def replace_evict_func(self, func, only_read=False):
         """
         >>> cache = Cache(log_level=logging.WARNING)
         >>> def evict(dict, evict_number=10): pass
@@ -365,7 +372,7 @@ class Cache(object):
 
     @_check_function_obj(param_length=1)
     @_enable_lock
-    def replace_cleanup_func(self, func):
+    def replace_cleanup_func(self, func, only_read=False):
         """
         >>> cache = Cache(log_level=logging.WARNING)
         >>> def cleanup(self): pass
@@ -382,7 +389,7 @@ class Cache(object):
 
     @_check_function_obj(param_length=1)
     @_enable_lock
-    def with_cache_loader(self, func):
+    def with_cache_loader(self, func, only_read=False):
         """
         >>> cache = Cache(log_level=logging.WARNING)
         >>> def cache_loader(key): pass
@@ -398,7 +405,7 @@ class Cache(object):
 
     @_check_function_obj(param_length=2)
     @_enable_lock
-    def with_cache_writer(self, func):
+    def with_cache_writer(self, func, only_read=False):
         """
         >>> cache = Cache(log_level=logging.WARNING)
         >>> def cache_writer(key): pass
@@ -413,7 +420,7 @@ class Cache(object):
         return True
 
     @_enable_lock
-    def stop_regularly_cleanup(self):
+    def stop_regularly_cleanup(self, only_read=False):
         """
         >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.stop_regularly_cleanup()
@@ -431,7 +438,7 @@ class Cache(object):
             return False
 
     @_enable_lock
-    def start_regularly_cleanup(self, regularly_cleanup_interval=None):
+    def start_regularly_cleanup(self, regularly_cleanup_interval=None, only_read=False):
         """
         >>> cache = Cache(regularly_cleanup=False, log_level=logging.ERROR)
         >>> cache.start_regularly_cleanup()
@@ -453,7 +460,7 @@ class Cache(object):
             return False
 
     @_enable_lock
-    def with_thread_pool(self, init_func=None):
+    def with_thread_pool(self, init_func=None, only_read=False):
         """
         >>> cache = Cache(enable_thread_pool=False, log_level=logging.ERROR)
         >>> cache.with_thread_pool()
@@ -474,7 +481,7 @@ class Cache(object):
             return False
 
     @_enable_lock
-    def unable_thread_pool(self):
+    def unable_thread_pool(self, only_read=False):
         """
         >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.unable_thread_pool()
@@ -493,7 +500,7 @@ class Cache(object):
             return False
 
     @_enable_lock
-    def shutdown_thread_pool(self):
+    def shutdown_thread_pool(self, only_read=False):
         """
         >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.shutdown_thread_pool()
@@ -511,7 +518,7 @@ class Cache(object):
             return False
 
     @_enable_lock
-    def set_capacity(self, new_capacity):
+    def set_capacity(self, new_capacity, only_read=False):
         """
         >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.set_capacity(100)
@@ -527,7 +534,7 @@ class Cache(object):
         self.capacity = new_capacity
 
     @_enable_lock
-    def set_expire(self, new_expire):
+    def set_expire(self, new_expire, only_read=False):
         """
         >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.set_expire(40)
@@ -543,7 +550,7 @@ class Cache(object):
         self.expire = new_expire
 
     @_enable_lock
-    def set_evict_number(self, new_evict_number):
+    def set_evict_number(self, new_evict_number, only_read=False):
         """
         >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.set_evict_number(10)
@@ -560,7 +567,7 @@ class Cache(object):
         self.evict_number = new_evict_number
 
     @_enable_lock
-    def with_read_after_refresh_expire(self, flag):
+    def with_read_after_refresh_expire(self, flag, only_read=False):
         """
         >>> cache = Cache(log_level=logging.WARNING)
         >>> cache.read_after_refresh_expire
@@ -579,7 +586,7 @@ class Cache(object):
 
     @_enable_thread_pool
     @_enable_lock
-    def statistic_record(self, desc=True, timeout=3, is_async=False, *keys):
+    def statistic_record(self, desc=True, timeout=3, is_async=False, only_read=True, *keys):
         """
         Returns a list that each element is a dictionary of the statistic info of the cache item.
         """
@@ -715,7 +722,7 @@ class Cache(object):
     @_enable_thread_pool
     @_enable_lock
     @_enable_cleanup
-    def get(self, key, timeout=1, is_async=False):
+    def get(self, key, timeout=1, is_async=False, only_read=True):
         """
         Test:
 
@@ -757,7 +764,7 @@ class Cache(object):
     @_enable_thread_pool
     @_enable_lock
     @_enable_cleanup
-    def put(self, key, value, expire=None, timeout=1, is_async=True):
+    def put(self, key, value, expire=None, timeout=1, is_async=True, only_read=False):
         """
         Test:
 
@@ -778,7 +785,7 @@ class Cache(object):
     @_enable_thread_pool
     @_enable_lock
     @_enable_cleanup
-    def pop(self, key, timeout=1, is_async=False):
+    def pop(self, key, timeout=1, is_async=False, only_read=False):
         """
         Test:
 
@@ -836,50 +843,50 @@ class Cache(object):
         return self.pop(key)
 
     @_enable_lock
-    def __contains__(self, key):
+    def __contains__(self, key, only_read=True):
         return self.cache_items.__contains__(key)
 
     @_enable_lock
-    def __iter__(self):
+    def __iter__(self, only_read=True):
         return self.cache_items.__iter__()
 
     @_enable_lock
-    def __reversed__(self):
+    def __reversed__(self, only_read=True):
         return self.cache_items.__reversed__()
 
     @_enable_lock
-    def __sizeof__(self):
+    def __sizeof__(self, only_read=True):
         return self.cache_items.__sizeof__()
 
     @_enable_lock
-    def __repr__(self):
+    def __repr__(self, only_read=True):
         if not self:
             return '%s()' % (self.__class__.__name__,)
         return '%s(%r)' % (self.__class__.__name__, list(self.cache_items.items()))
 
     @_enable_lock
-    def __eq__(self, other):
+    def __eq__(self, other, only_read=True):
         if isinstance(other, Cache):
             return self.cache_items.__eq__(other.cache_items) and all(map(lambda a, b: a == b, self, other))
         return dict.__eq__(self.cache_items, other.cache_items)
 
     @_enable_thread_pool
     @_enable_lock
-    def keys(self, timeout=2, is_async=False):
+    def keys(self, timeout=2, is_async=False, only_read=True):
         return self.cache_items.keys()
 
     @_enable_thread_pool
     @_enable_lock
-    def items(self, timeout=2, is_async=False):
+    def items(self, timeout=2, is_async=False, only_read=True):
         return self.cache_items.items()
 
     @_enable_thread_pool
     @_enable_lock
-    def values(self, timeout=2, is_async=False):
+    def values(self, timeout=2, is_async=False, only_read=True):
         return self.cache_items.values()
 
     @_enable_lock
-    def _generate_cache_instance_name(self, basic_name):
+    def _generate_cache_instance_name(self, basic_name, only_read=False):
         name = basic_name + '-' + str(Cache.cache_instance_id_counter)
         Cache.cache_instance_id_counter += 1
         return name
