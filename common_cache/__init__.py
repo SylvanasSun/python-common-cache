@@ -700,6 +700,7 @@ class Cache(object):
                         cache_result = cache_loader(k)
                     elif self.cache_loader is not None:
                         cache_result = self.cache_loader(k)
+                        self.put(key=k, value=cache_result, expire=expire, timeout=timeout)
                 # if still miss then execute a function that is decorated
                 # then update cache on the basis of parameter auto_update
                 if cache_result is not None:
